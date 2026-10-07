@@ -5,8 +5,8 @@ license="LGPL-3.0-only"
 
 [[mods]]
     modId="littletiles"
-    logoFile="littletiles.png"
     version="1.6.0-pre233"
+    logoFile="littletiles.png"
     displayName="LittleTiles"
     displayURL="https://modrinth.com/mod/littletiles"
     authors="CreativeMD, N247S"
@@ -37,6 +37,30 @@ license="LGPL-3.0-only"
    side="BOTH"
    versionRange="[2.13.50,)"
 
+[[dependencies.littletiles]]
+   modId="yuushya_lt_connected_textures_compat"
+   type="incompatible"
+   ordering="NONE"
+   side="CLIENT"
+   versionRange="[0,)"
+
+[[dependencies.littletiles]]
+   modId="yuushya_lt_ctm_compat"
+   type="incompatible"
+   ordering="NONE"
+   side="CLIENT"
+   versionRange="[0,)"
+
+[[dependencies.littletiles]]
+   modId="yuushya_lt_fusion_compat"
+   type="incompatible"
+   ordering="NONE"
+   side="CLIENT"
+   versionRange="[0,)"
+
 [[mixins]]
    config="littletiles.mixins.json"
+
+[[mixins]]
+   config="littletiles.connected.mixins.json"
 
