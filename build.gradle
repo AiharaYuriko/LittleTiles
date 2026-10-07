@@ -59,6 +59,22 @@ java.sourceSets.create("api") {
 sourceSets.main.compileClasspath += sourceSets.api.output
 sourceSets.main.runtimeClasspath += sourceSets.api.output
 
+// Isolated JVM regression tests; their render-layer fixture is never packaged.
+sourceSets.create('regression') {
+    compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+    runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+}
+
+tasks.register('boundaryRenderRegression', JavaExec) {
+    group = 'verification'
+    description = 'Checks edit/update interleaving and boundary face refresh without launching Minecraft.'
+    dependsOn tasks.named('regressionClasses'), tasks.named('jar')
+    classpath = sourceSets.regression.runtimeClasspath
+    mainClass = 'BoundaryRenderRegression'
+    jvmArgs '-Xverify:all'
+    doFirst { args = [tasks.jar.archiveFile.get().asFile.absolutePath] }
+}
+
 project.evaluationDependsOn(":CreativeCore")
 
 runs {  

@@ -158,8 +158,10 @@ public class BERenderManager {
     }
     
     public void onNeighbourChanged() {
-        neighbourChanged = true;
-        queue(false, false, 0);
+        synchronized (this) {
+            neighbourChanged = true;
+            queue(false, false, 0);
+        }
     }
     
     public void queue(boolean eraseBoxCache, boolean hasPos, long pos) {
@@ -236,12 +238,18 @@ public class BERenderManager {
     }
     
     public void beforeBuilding(RenderingBlockContext context) {
-        if (neighbourChanged) {
+        boolean changed;
+        synchronized (this) {
+            changed = neighbourChanged;
+            neighbourChanged = false;
+        }
+        // Claim only the updates seen at entry. Edits arriving during this build
+        // must remain dirty for the queued follow-up build.
+        if (changed) {
             if (boxCache != null)
                 for (ChunkLayerMapList<LittleRenderBox> layer : boxCache.values())
                     for (LittleRenderBox box : layer)
                         box.deleteQuadCache();
-            neighbourChanged = false;
             
             if (boxCache != null)
                 for (ChunkLayerMapList<LittleRenderBox> map : boxCache.values())
@@ -261,7 +269,12 @@ public class BERenderManager {
     
     private void calculateFaces(Facing facing, LittleFaceState state, RenderingBlockContext context, @Nullable LittleTile tile, LittleBox box, LittleRenderBox cube,
             boolean recheck) {
-        
+        // Serialized face flags outlive the render boxes. A newly built boundary
+        // face still needs the current client neighbor geometry after an edit.
+        if (!recheck && state.outside()) {
+            cube.customData = tile;
+            recheck = true;
+        }
         LittleFace face = null;
         if (recheck) {
             face = cube.box.generateFace(be.getGrid(), facing);
@@ -272,8 +285,7 @@ public class BERenderManager {
             }
             
             state = face.calculateOutsideClient(tile, context);
-        } else if (state.outside())
-            cube.customData = tile;
+        }
         
         if (state.coveredFully()) {
             cube.setFace(facing, RenderBoxFace.NOT_RENDER);

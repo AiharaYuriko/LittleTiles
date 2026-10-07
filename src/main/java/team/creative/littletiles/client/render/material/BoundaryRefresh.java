@@ -38,17 +38,13 @@ public final class BoundaryRefresh {
         }
         for (BlockPos pos : affected) {
             if (!level.hasChunkAt(pos)) continue;
-            var state = level.getBlockState(pos);
-            boolean relevant = ConnectedMaterialState.supports(state);
-            if (level.getBlockEntity(pos) instanceof BETiles tiles
-                    && !MaterialNeighbors.tiles(tiles).materials().isEmpty()) {
-                // A chunk rebuild alone may reuse LT's independent quad/buffer caches.
-                tiles.render.queue(true, false, 0);
-                relevant = true;
-            }
-            if (relevant)
-                client.levelRenderer.setBlocksDirty(pos.getX() - 1, pos.getY() - 1, pos.getZ() - 1,
-                    pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
+            // LT edits change boundary geometry even when no block state changes.
+            // Refresh every material, and retain the neighbor-dirty indication
+            // instead of merely dropping boxes that can reuse old face flags.
+            if (level.getBlockEntity(pos) instanceof BETiles tiles)
+                tiles.render.onNeighbourChanged();
+            client.levelRenderer.setBlocksDirty(pos.getX() - 1, pos.getY() - 1, pos.getZ() - 1,
+                pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
         }
     }
 }
