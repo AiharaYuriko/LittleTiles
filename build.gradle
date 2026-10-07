@@ -77,6 +77,16 @@ tasks.register('boundaryRenderRegression', JavaExec) {
 
 project.evaluationDependsOn(":CreativeCore")
 
+tasks.register('renderBuildOwnershipRegression', JavaExec) {
+    group = 'verification'
+    description = 'Checks exclusive render builders, rejected-task cleanup and empty-entity cache release.'
+    dependsOn tasks.named('regressionClasses'), tasks.named('jar')
+    classpath = sourceSets.regression.runtimeClasspath
+    mainClass = 'RenderBuildOwnershipRegression'
+    jvmArgs '-Xverify:all'
+    doFirst { args = [tasks.jar.archiveFile.get().asFile.absolutePath] }
+}
+
 runs {  
     configureEach {
         workingDirectory project.file('run')

@@ -175,13 +175,17 @@ public class BERenderManager {
         }
     }
     
+    public static final int BUILDING_BLOCKED = Integer.MIN_VALUE;
+
     public int startBuildingCache() {
         synchronized (this) {
+            // Checking isBlocked before this call cannot reserve the shared boxes.
+            if (!blocked.compareAndSet(0, 1))
+                return BUILDING_BLOCKED;
             if (eraseBoxCache) {
                 boxCache = null;
                 eraseBoxCache = false;
             }
-            blocked.incrementAndGet();
             return requestedIndex;
         }
         
