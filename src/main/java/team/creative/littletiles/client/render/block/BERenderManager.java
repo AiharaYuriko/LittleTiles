@@ -158,9 +158,13 @@ public class BERenderManager {
     }
     
     public void onNeighbourChanged() {
+        onNeighbourChanged(false);
+    }
+
+    public void onNeighbourChanged(boolean eraseBoxCache) {
         synchronized (this) {
             neighbourChanged = true;
-            queue(false, false, 0);
+            queue(eraseBoxCache, false, 0);
         }
     }
     

@@ -874,10 +874,12 @@ public class BlockTile extends BaseEntityBlock implements LittlePhysicBlock, Sim
     @Override
     public boolean hidesNeighborFace(BlockGetter level, BlockPos pos, BlockState state, BlockState neighborState, Direction dir) {
         BETiles be = loadBE(level, pos);
-        if (be != null && be.sideCache.get(Facing.get(dir)).doesBlockLight()
-                && team.creative.littletiles.common.math.face.NeighborFaceCoverage.full(be, Facing.get(dir)))
-            return neighborState.isSolidRender(level, pos.relative(dir));
-        return false;
+        // Preserve the baseline decision, as the verified 0.2.17 hook does.
+        // This guard may withdraw hiding; it must not introduce a new hidden face.
+        if (be == null || !be.hasLoaded() || !be.sideCache.get(Facing.get(dir).opposite()).doesBlockLight()
+                || !neighborState.isSolidRender(level, pos))
+            return false;
+        return team.creative.littletiles.common.math.face.NeighborFaceCoverage.full(be, Facing.get(dir));
     }
     
     @Override

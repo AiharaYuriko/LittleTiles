@@ -129,7 +129,17 @@ public final class BoundaryRenderRegression implements Opcodes {
     static void check(boolean condition, String description) { checks++; if (!condition) throw new AssertionError(description); }
 
     static void genericDeferredRefresh(Path path) throws Exception {
-        String owner = "team/creative/littletiles/client/render/material/BoundaryRefresh";
+        var entities = refresh(path, "team/creative/littletiles/client/render/material/BoundaryRefresh", false);
+        for (WorldEntity entity : entities) {
+            check(entity.manager.requests == 1, "ordinary-material LT on both sides of an edit receives one refresh");
+            check(entity.manager.fullRequests == 1, "deferred geometry refresh discards old render boxes, as the working patch does");
+            var dirty = BERenderManager.class.getDeclaredField("neighbourChanged"); dirty.setAccessible(true);
+            check(dirty.getBoolean(entity.render), "deferred refresh records changed boundary geometry");
+        }
+        check(Client.INSTANCE.levelRenderer.redraws == 7, "edited block and all six neighbors redraw, including ordinary blocks");
+    }
+
+    static List<WorldEntity> refresh(Path path, String owner, boolean supported) throws Exception {
         String name = "NativeBoundaryRefreshProbe";
         ClassNode source = new ClassNode();
         try (JarFile jar = new JarFile(path.toFile())) { new ClassReader(jar.getInputStream(jar.getJarEntry(owner + ".class"))).accept(source, 0); }
@@ -147,6 +157,9 @@ public final class BoundaryRenderRegression implements Opcodes {
         mapping.put("team/creative/littletiles/client/render/material/ConnectedMaterialState", Type.getInternalName(UnsupportedMaterial.class));
         mapping.put("team/creative/littletiles/client/render/material/MaterialNeighbors", Type.getInternalName(MaterialLookup.class));
         mapping.put("team/creative/littletiles/client/render/material/NeighborMaterials", Type.getInternalName(Materials.class));
+        mapping.put("com/yuushya/compat/connected/ConnectedMaterialState", Type.getInternalName(UnsupportedMaterial.class));
+        mapping.put("com/yuushya/compat/connected/MaterialNeighbors", Type.getInternalName(MaterialLookup.class));
+        mapping.put("com/yuushya/compat/connected/NeighborMaterials", Type.getInternalName(Materials.class));
         mapping.put("net/neoforged/neoforge/client/event/ClientTickEvent$Post", "java/lang/Object");
         Remapper remapper = new SimpleRemapper(mapping);
         ClassWriter out = new ClassWriter(ClassWriter.COMPUTE_MAXS);
@@ -157,6 +170,7 @@ public final class BoundaryRenderRegression implements Opcodes {
         Class<?> cls = new ClassLoader(BoundaryRenderRegression.class.getClassLoader()) {
             Class<?> define() { return defineClass(name, bytes, 0, bytes.length); }
         }.define();
+        MaterialLookup.supported = supported;
         World level = new World(); Client.INSTANCE = new Client(level);
         Pos origin = new Pos(3, 10, 8);
         List<WorldEntity> entities = new ArrayList<>();
@@ -165,12 +179,7 @@ public final class BoundaryRenderRegression implements Opcodes {
         }
         cls.getField("PENDING").set(null, new HashMap<>(Map.of(level, Set.of(origin))));
         cls.getMethod("tick", Object.class).invoke(null, new Object());
-        for (WorldEntity entity : entities) {
-            check(entity.manager.requests == 1, "ordinary-material LT on both sides of an edit receives one refresh");
-            var dirty = BERenderManager.class.getDeclaredField("neighbourChanged"); dirty.setAccessible(true);
-            check(dirty.getBoolean(entity.render), "deferred refresh records changed boundary geometry");
-        }
-        check(Client.INSTANCE.levelRenderer.redraws == 7, "edited block and all six neighbors redraw, including ordinary blocks");
+        return entities;
     }
 
     public record Pos(int x, int y, int z) {
@@ -183,9 +192,9 @@ public final class BoundaryRenderRegression implements Opcodes {
         public BERenderManager render = manager;
     }
     public static final class RefreshManager extends BERenderManager {
-        int requests;
+        int requests, fullRequests;
         RefreshManager() { super(null); }
-        @Override public void queue(boolean erase, boolean hasPos, long pos) { requests++; }
+        @Override public void queue(boolean erase, boolean hasPos, long pos) { requests++; if (erase) fullRequests++; }
     }
     public static final class World {
         final Map<Pos, BaseEntity> entities = new HashMap<>();
@@ -195,8 +204,8 @@ public final class BoundaryRenderRegression implements Opcodes {
     }
     public static final class State {}
     public static final class UnsupportedMaterial { public static boolean supports(State state) { return false; } }
-    public static final class Materials { public Set<Object> materials() { return Set.of(); } }
-    public static final class MaterialLookup { public static Materials tiles(WorldEntity entity) { return new Materials(); } }
+    public static final class Materials { public Set<Object> materials() { return MaterialLookup.supported ? Set.of("supported") : Set.of(); } }
+    public static final class MaterialLookup { static boolean supported; public static Materials tiles(WorldEntity entity) { return new Materials(); } }
     public static final class Renderer { int redraws; public void setBlocksDirty(int a, int b, int c, int d, int e, int f) { redraws++; } }
     public static final class Client {
         static Client INSTANCE;
